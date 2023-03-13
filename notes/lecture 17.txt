@@ -1,0 +1,12 @@
+gdb commands:
+target remote | qemu-system-x86_64 -hda boot.bin -S -gdb stdio
+^ start gdb session
+
+c
+^ continue
+
+layout asm
+^ disassembly memory from program counter
+
+info registers
+

@@ -1,0 +1,249 @@
+# 1.11 fat16 disk layout
+
+so this is the fat16 filesystem disk layout on the disk
+so the first sector here we have the boot sector
+we've written a boot sector before
+a boot sector or a boot loader is 512 bytes in size
+
+even though this is a filesystem, we can still boot from the medium
+because the boot sector that the file allocation table file system requires is formatted
+in such a way that allow us to still store code in the boot sector
+i'll show you this later on
+
+so, we would still using our boot sector to load our kernel.
+however, just bear in mind when we implement the file allocation table the boot sector will also
+contain certain meta information about the file system
+okay, which we'll see soon.
+
+so, after the boot sector in the file allocation table we have the reserved sectors
+now, this is essentially sectors we don't want to be included as a part of the filesystem
+so for example in the boot sector we have a little field that specifies how many reserved 
+sectors we have, right?
+and the number in this field also includes the boot sector itself.
+
+so if you don't have any reserved sectors then the reserved sectors field should contain 1,
+because the boot sector still counts as a reserved sector if that make sense.
+now the size of the reserved sectors is the reserved sectors field in the file allocation
+header, which is stored in the boot sector by the way, multiplied by 512.
+becuase 512 is the sector size on a harddisks
+
+after the reserved sector we have the fat 1, now fat stands for file allocation table, essentially
+the fat stores information that explains which part of the disk is free and which part of the disk
+is used, which part of the disk is inaccessible. that's what the file allocation table describes.
+and it also allow you to chain clusters together, okay?
+
+so for example if you have a file that is 2 clusters in size. 
+then in file allocation table you'll have 2 bytes that represent a cluster, okay? 
+and the value of those 2 bytes will be the number of the next cluster of that file. 
+but we'll get more on that later. 
+
+and here we have the fat2. now this is optional so i'm not gonna discuss this in this presentation.
+however it's essentially just a duplicate of the fat1 and it's to be used as a backup for things
+like data corruption. and it's completely optional.
+
+now after the second file allocation table, or the first allocation table 
+if you don't have a second, 
+we have the root directory. now the size of the root directory is specified in a field in 
+the file allocation header, file allocation table header I should say. 
+and the field is the root directory entires. so the size of the root directory entry is simple, 
+
+it's the root directory entries multiplied by the size of the fat_directory_item structure, okay? 
+and we also need to round this up to the sector as well by the way. 
+so the root directory will always use at least one sector it isn't going to use 30 bytes, 
+do you understand? so we need to round that to 512.
+
+so essentially, if size of the root directory does not fit into a sector then we need to 
+add one sector to the size. 
+okay now after the root directory we have our data clusters. 
+here is where all our data is stored our hello.txt text file the hello world we wrote. t
+hat is stored in this data clusters. 
+
+remember each file uses at least one data cluster okay? 
+subdirectory is also stored in the data clusters as well. 
+so that's the entire structure of fat16. 
+I now gonna break down each part and we'll go into more detail and I'll give you some examples. 
+
+# 5.11 fat16 boot sector
+okay so this is the fat16 bootsector format i was telling you about.
+so the very first thing you see is a short jump. this is assembly as you can see.
+now this is a short jump to the start label, this ensures we jump over the fat16 header and
+all of that stuff, and we also require no operation after our short jump.
+
+I mean this is how the format expects it, okay? file allocation table expects it in this format.
+so, next come all the header information. and in the header information you can see we store the
+BytesPerSector, this field should be ignored by the way, because we can't rely that it's correct.
+SectorsPerCluster, this is a good field we need to rely on this.
+
+this is how many sectors there are in one cluster. okay? 
+cause remember I was telling you the cluster where the file information is stored right?
+then we have our ReservedSectors, so as you can see in this implementation we have 
+200 reserved sectors. And obviously if you have a quite a big kernel, you gonna need quite
+a lot of reserved sectors there, unless you plan to load the kernel from disk,
+
+which we won't do by the way, cause it's more complicated. and we can see here we specify the 
+amount of FATCopies remember I said you gonna have one file allocation table or a second one which
+is a backup so that's why this says 2. so this MediaType can be ignored, the NumSectors here can be
+ignored and all that sort of stuff.
+
+SectorsPerFAT is important this is how many sectors are in the file allocation table itself,
+so file allocation table 1, fat 1, fat 2, you know? again SectorsPerTrack, NumerOfHeads, these can
+all be ignored, we don't have to worry about these. 
+Here are OEMIdentifier this is a little important
+but not too important, you know when you put in a USB stick in your computer. and it tells you the
+volume name? stuff like that? what it is actually called, well the OEMIdentifier can be used for
+that, basically, right? 
+
+okay? so that's what the boot sector looks like.
+after the file system header we can see a start label, you can't see it because it's further down.
+but we jump to that, and then that can all juse be code, okay?
+just as long as the header's formatted this way, everything will be fine.
+you need a short jump, and you need a no operation.
+
+# 7.23 fat16 boot sector
+and this is the assembled version, so this is what it looks like when you open the filesystem in a
+hex editor, so yeah, we can see that sector there, and we can see we still have our little boot
+signature at the bottom here, 55AA. okay? so that signifies we are bootable. 
+now you can see after the first sector, these are all our reserved sectors, so because we
+specify reserved sectors 200, this means we have 200 reserved sectors after the boot sector.
+
+before we have our file allocation table, 200 * 512 = 102,400 bytes. if our kernel exceeds
+this size, we need to increase the reserved sectors to 201 or otherwise we'll risk corrupting
+the file allocation table. or our file allocation table will corrupt us.
+
+so after the reserved sectors we have our file allocation table. the first file allocation table,
+file allocation table 1 fat 1. and we can see it looks like this. so we can see the first few
+entries here are ignored, and then we have FF FF FF FF FF... Now each entry is 2 bytes
+in size, okay? so if we count here, 0 1 2 3, so where it says FF FF the very first FF FF.
+This is talking about cluster 3, and cluster 3 is taken and we know it's taken because the
+value is FF FF. FF FF means end of file, so this basically means whatever data this is,
+
+there's no more data after it, so in our hello.txt example, hello world, that's only gonna
+be 1 cluster in size, so we see FF FF. So this signifies this is the last cluster for
+this file. if the hello.txt file was 2 cluster in size, then there would be a number
+here, pointing to the next cluster. so let's say it was cluster 4, where the file
+continued.
+
+Then number 4 would be here, and it would point to this one. and this one be FF FF.
+
+Okay so as you know each entry in the file allocation table is 2 bytes long. I just explained
+that to you. but what you might not know is they represent a cluster in the data clusters
+region that is available or taken. okay? so another thing, clusters can chain together.
+for example, a file larger than 1 cluster will use 2 clusters. the value that represent
+the first clusters in the file allocation table will contain the value of the next cluster.
+
+the final cluster will contain a value of 0xFFFF signifying that there are no more clusters.
+The size of a cluster is represented in the boot sector. Let's take a look at this example
+table and let's assume we start from cluster 0, we can see here cluster zero contains decimal
+3. which means that there's more clusters to come and we should look at index 3, so 0 1 2 3
+
+This is the index 3, and you can see it says 0xffff signifying the end of the cluster chain.
+So whatever this cluster here is representing, has 2 clusters. It could be representing
+a subdirectory or it could be representing a file, file data. Now as I already said cluster
+0 is not ready used. We usually start at cluster 3 but I wanna just give this example from 0
+cause it's easier for you to understand.
+
+So we can see our file allocation table points to our data clusters. as demonstrated in this
+table. so this represents data cluster 0. this represent data cluster 1,
+this represents data cluster 2, data cluster 3, and so on. so obviously finding out
+where the data is in the data clusters is quite simple. we need to first know the position
+of where our data clusters start.
+
+and we know this because it's directly after the root directory. okay, so now that we know
+that what happens next? well we just multiply the cluster index by the size of a cluster.
+and a size of a cluster is specified in the boot sector. so for example this specifies
+cluster 0 so this cluster here represents the very first cluster after the root directory.
+
+so this represents the very first cluster in the data clusters region, so it'll literraly be
+the first byte after the root directory. and then obviously this is one, so you multiply one
+by the size of the clusters let's say 65536 or something right? so then you know that when you
+multiply that by one, you'll get 65536 and that would be the first byte of the next cluster.
+
+Okay so I hope that makes sense, these are just numbers I'm throwing at you here just as an
+example. We probably won't use these exact numbers just to let you know I'm just
+trying to simplify it for you. this is the process that's going on under the hood
+and this is what we're going to be expected to write in the C programming language.
+
+# 12.13 Fat16 Root Directory
+So let's explain the FAT16 Root Directory. Filesystems have directories, otherwise it's known
+as folders. FAT16 is no different. FAT16 has what's known as a root directory. This is the
+topmost directory in the system. Think of your C drive, at the very top level of your C drive
+this is the root directory. Directories contain directory entries of a fixed size.
+
+So this is what a directory entry looks like so we can see we have the filename. which is
+8 bytes long, very short filename isn't it? There is long file names, they do exist but
+we're gonna ignore it becuase it's more complicated to implement and I want to keep this
+simple for you. We can see we have an extension of 3 bytes for that filename. We have an
+attribute field, this contains things like flags and so on. reserved is self explanatory
+we shouldn't use it. it's reserved.
+
+this is the creation time, creation date, the last time it was accessed, the high 16 bits of the
+first cluster for the data region of this directory item, and the low 16 bits of the 
+first cluster. so simply put if this directory item represents a file, then or-ing these
+two together, the high bits and low bits will give you the cluster of where the first byte
+is for this file. So hello.txt has hello world right, the high 16 bits the first cluster
+and the low 16 bits the first cluster point to where that hello world message is stored, okay?
+
+the attribute field also contain flags that determine if this directory item is a file,
+a directory, or if it's read only and so on. so directory items can either be sub-directory
+or files, okay? If it's a file, then the first cluster points to where the start of the
+file data is.
+
+If it's a directory, then the first cluster points to the cluster where the subdirectory
+directory items are stored. and obviously they're stored the same way as they're stored
+in the root directory. cause on the root directory we basically have an array of these
+directory item entries right, subdirectory are exactly the same we have a bunch of files
+and subdirectories represented by fat_directory_items okay, I explain these here as well
+on this text.
+
+Okay so how do we iterate through directories? Well the boot sector contains the maximum
+number of root directory entries, and we should not exceed this value when iterating
+through the root directory. We know when we've finished iterating through the root directory
+or a subdirectory because the first byte of the filename will be equal to 0.
+
+So what I mean by that is you know how we have an array of these directory items in the
+root directory and in the subdirectory there will be an empty item somewhere at the very
+bottom of that directory. and the first byte in the filename will be 0. okay?
+So that's how we know when we're done cause there's always a blank entry at the
+bottom of the directory or subdirectory. So we just check for 0.
+
+So the directory entry attribute flags, you know these these directory entries, they're
+representing either a file or a directory, okay? so these flags we have readonly, and this
+is a bitmask okay, read only, file hidden, system file do not move, volume label, 0x10
+means that this is not a regular file, it's a subdirectory, so if this bit is set then
+it's a subdirectory, if it's not set then it represents a regular file. bit 0x20 archive,
+bit 0x40 device, bit 0x80 reserved must not be changed by disk tools. so these are the
+flags in the attribute field in the directory entries.
+
+okay so we now need to talk a little about the filename and the extension, because 
+there is special rules that might catch you out. the filename is 8 bytes wide, unused bytes
+are padded with spaces, not null terminators. I know it's weird, this is how it's done okay?
+So you know the filename is done when there's a space. And this also explains why spaces
+are illegal in this file system, they get replaced with some weird other character, but more
+on that later.
+
+The extension is exactly the same, it's 3 bytes wide, and unused bytes are padded with spaces.
+So you know when you're done cause you see a space. Each cluster represent a certain amount of
+a sectors linearly to each other. So this is important to know. For example in the boot sector
+we might have 80 sectors per cluster so this means that one cluster is 80 sectors long. okay?
+easy
+
+the data cluster section in the filesystem contains all the clusters that make up the
+subdirectories and file data of files throughout the FAT filesystem. 
+
+So some useful tips before we end this lecture. Always use __attribute__((packed)) on structures
+in the C programming language that ought to be stored or read from disks. The C compiler can
+do very clever optimizations to speed up your code. It can change the way these structures are
+stored in memory, and this could be very bad for us. because we need it read and written
+exactly as we created the structure. so by doing __attribute__((packed)) that ensures that always happens. 
+
+I want you to pay very close attention to the upcoming videos. Things are going to get very
+difficult and mistakes might happen. Be prepared to use a debugger such as gdb and attach
+debugging symbols as I've shown you in previous lectures. You might need to debug this if you
+run into issues. But don't sweat it, I've broken the FAT filesystem down. I've explained it to you
+so now you should have a rough idea what's going on when we start writing the code.
+
+Now I have written the the file allocation table implementation before it's around 
+750 lines of code for a file allocation table that can only read, not write. and you know, so this
+is what you're gonne be expected to write around 750 lines. so just prepare yourself for it.
+pay close attention to everything I'm saying. Cause you have a lot to learn.
+

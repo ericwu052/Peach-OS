@@ -1,0 +1,74 @@
+hello and welcome,
+in this lecture we're going to improve our bootloader by setting up
+segment registers and changing our program's origin
+
+when the bios first loads us we don't know what the segment registers are
+because of this by having a boot loader like we have now there's no guarantee
+it'll successfully boot on most systems
+
+for example if the bios sets our data segment to 0x7c0 and our assembly program's
+origin is 0x7c00 then the equation we dealt will be ds * 16 + 0x7c00, so if
+DS = 0x7c0
+0x7c00 + 0x7c00, which doesn't point to our message
+because of these types of scenarios it make sense for us to initialize
+the data segment and all the other segment registers ourself,
+so we're going to do that here.
+
+so the first thing I want you to do is change your assembly program's origin to zero.
+the next thing I want you to do is go to the start label and we're gonna go cli
+and then under that sti. so I'm going to do an assembly comment here just to describe
+what's going on. clear interrupts, so this clear the interrupt flags, and this
+enables interrupts.
+
+Obviously if you've done assembly you've probably use interrupt before you know when
+you're calling linux kernel or windows kernel. you'll go something like int 0xad something like that
+right? anyway, by clearing the interrupt flag here it'll disable interrupts, which is what we want
+because we're about to change segment registers, and we wouldn't want some hardware interrupts
+now to interrupt us while we're doing this cause this is a very critical operation right?
+
+the segments won't be setup correctly and all these other stuff. So what we're gonna do is 
+we're gonna go mov ax, 0x7c0, mov ds, ax, mov es, ax, now we can't just move this value
+directly into the data segment or the extra segment which is why we have to put it in ax first.
+that's just how the processor works, ok? 
+
+so we've setup the data segment and the extra segment, so let's say that you referenced
+message as we do here, mov si, message right? because our origin is zero, the assembler assumes
+we're loaded into address 0 in the ram right? so this offset will be fairly low, it might be
+20 bytes or whatever. it will be basically where in our binary file this is stored, ok?
+
+so that you know that, it get replaced with that right? so let's assume it's 20 bytes, right?
+so i'm just gonna 20 here, don't copy this, i'm just showing you. so, when we did our lodsb, like
+somthing like this right, what happen is, it will use data segment and si register. so, we do,
+we know we've changed our data segment to 0x7c0 right, 
+so we'll multiply that by 16 which give us this,
+0x7c00 + 20 = 0x7c14
+
+so that's what the processor is doing, right? so this is why we need to change this data segments
+because if the bios set them for us, it could mean our origin is set wrong for our assembly program
+and then it won't link up correctly, is that makes sense? so by changing these segment registers
+ourselves we're taking control of the situation rather than hoping that the bios set em 
+up the way we needed it be.
+
+okay, so i'm just gonna ctrl + z here, put that back to what it was and then we'll setup the
+stack segment. so the stack segment, we want to set it up a bit differently, because the stack
+grows downward right? so what we can do is we can set the stack pointer to equal 0x7c00, and
+then obviously it will grow down, as I showed in the segmentation lecture if you look there
+for the stack section where we talk about the stack, you'll see the stack described to you.
+
+so what we're goin to do then is to mov ax 0x00, move ss, ax
+so we're setting the stack segment now to be equal to 0 okay?
+that's what we want to do
+and then we're gonna set the stack pointer to 0x7c00 okay?
+and now that should work all fine!
+
+if we didn't do this and we reled on the bios to setup these data segment, extra segment 
+and so on us for us it might set them to 0x7c0 like we've done or it could set them to zero, 
+and assume that our origin is 0x7c00, you really don't know what the register are gonna be
+when bios loads us, so it's very important to take action and set these things yourself.
+just because it works for us in the emulator, so it's not neccesary mean it will work on your 
+real computer, right? all computer is different. so this helps increase our chances of being 
+able to be booted on a real machine.
+
+we need to go jmp 0x7c0:start
+and then this will make our code segment become 0x7c0, because our origin is zero, it's important
+our code segment is also changed to 0x7c0 so by doing this that ensures that happens.

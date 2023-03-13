@@ -1,0 +1,9 @@
+.hg/
+.hgignore
+
+# Emacs temporary files
+*~
+
+*.o
+*.elf
+*.bin

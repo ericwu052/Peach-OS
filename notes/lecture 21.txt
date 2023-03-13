@@ -1,0 +1,53 @@
+add-symbol-file ../build/kernelfull.o 0x100000
+b[reak] _start
+target remote | qemu-system-x86_64 -S -gdb stdio -hda os.bin
+c[ontinue]
+layout asm
+kill
+q[uit]
+
+1.41
+so we're not quite done with this lecture yet, there's still quite a few other things we need to do
+we're going to remove some of the 32 bit code in our bootloader and put it into its own assembly
+file. right? and then we're gonna assemble that to an object file and then link it into kernel.bin
+which we haven't created yet.
+
+what we'll then do is we'll assemble the bootloader as normal okay? we'll then compile our kernel
+which will only be one file for now, it will be kernel.asm or something right? based on the code
+we're gonna abstract out which is here. this 32 bit code here, we're gonna abstract all of this out
+into kernel.asm something like that right? so now makefile will then assemble that into an object
+file, and elf file or something like that.
+
+and then we'll use the linker to create an output binary called kernel.bin yeah? 
+and then will dd that into the actual operating system file which we'll call os.bin we haven't
+quite got there yet. it's just called boot.bin for now but boot.bin and kernel.bin will make up
+os.bin which we haven't created yet, okay?
+
+and then at that point in time, our bootlaoder and our kernel are separate okay? so the bootloader
+will take up the first sector which is the only sector loaded. it'll mean that for this 32 bit code
+here we'll have to load the next sector to actually be able to load this into memory right?
+
+okay, so sounds like a bit of a mouthful but this is an important step so yeah we'll gonna get on
+with that now.
+
+
+
+
+
+
+
+
+
+
+
+
+15.55
+and our linker script says the output format is a binary. so when we pass the next command
+that we'll gonna do it gets all our object files well it gets that giant object file which
+is the combination of all the linked object files and it basically outputs it in a binary form
+very very handy.
+
+so resolve all our symbols to binary, there's no header, there's no p file header, there's no
+elf header, just a flat binary and that's exactly what we want guys so then we don't have to 
+parse anything 
+

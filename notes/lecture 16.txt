@@ -1,0 +1,15 @@
+2.14
+so there's also different memory schemes in protected mode, our segment registers become selector registers, and the other memory scheme we have is paging. so this allows you to remap memory addresses so address 0x00 actually points to some other address for example. we'll discuss that in a moment.
+
+so let's first discuss the selector memory scheme, so our segment registers become selector registers and the selectors point to data structures that describe memory ranges and the permissions, you know the ring level, required to access a given range. so this is what a structure looks like, and unfortunately numbers don't fit perfectly into these bytes, so you'll have to rely on a bit of bitwise logic to get the base and limit set correctly and so on, but we can discuss more on all that later.
+
+so the paging memory scheme is the most common scheme for all operating systems and kernels. most kernels and operating systems implement this memory scheme. so this memory scheme is absolutely amazing, becasue what you have is you have virtual addresses and you can point those virtual addresses to physical addresses and memory protections is also easier to control. so for example if you look at this table you can see at the page directory address 0x00 that points to page table 0 right?
+
+and the the adress 0x00 in the page table points to address 0x24b000 right? in real memory. so if you actually access address 0 you actually accessing the address 0x24b000 and so on right? if you access 0x01 your accessing address 0x24b001, right? this is how paging works. it's fantastic! because it allows all programs to believe they're loaded to the same address.
+
+it also allows you to completely map out all other user programs in memory, so it makes it impossible for user program to see the address space of another program that's running. as far as the program's concerned it's the only program running. it can't see anythign else, with this memory scheme we can actually map multiple processes at the same address 0x400000 for example. now in real the memory obviously they're in different places, but the virtual memory we can make 0x400000 point to the process 1's memory while process 1 is currently being executed and.
+
+as soon as we execute process 2, we can swap the page table and page directories, so that 0x400000 now points to process 2's memory, right? it's fantastic feature and it's very important in modern operating systems. but this is way down the line. you probably don't understand a word i'm saying right now but don't worry because the paging memory scheme we'll discuss that way down the line that's plenty you need to learn before we get on to that. but paging is generally simple, basically, a directory of pointers to page table essentially and then we have page table entries.
+
+and we can point to real memory, and i should also note that any virtual addresses and physical addresses that those virtual addresses point to they all need to be divisible by 4096, if there's any remainder then it won't work. right? so they need to divide perfectly into 4096.
+
